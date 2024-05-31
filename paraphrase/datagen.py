@@ -12,7 +12,7 @@ client = OpenAI()
 
 def gpt_completion(system_prompt, user_prompt):
     response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model= "gpt-4o",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -54,40 +54,38 @@ Now, apply this specific persuasion (if the technique requires you to refer to a
 """
 
 num_lines_queries = (
-    0  # Set this to the number of lines you want to read. If 0, read all lines.
+    25  # Set this to the number of lines you want to read. If 0, read all lines.
 )
 
 # Reading queries from CSV
-queries_df = pd.read_csv("queries.csv")
+# Reading queries from CSV
+queries_df = pd.read_csv('queries.csv')
 
-if num_lines_queries > 0:
-    queries_df = queries_df.sample(n=num_lines_queries)
-
-num_lines_techniques = (
-    0  # Set this to the number of lines you want to read. If 0, read all lines.
-)
+num_lines_techniques = 0  # Set this to the number of lines you want to read. If 0, read all lines.
 
 # Reading techniques from JSONL
 techniques = []
-with open("techniques.jsonl", "r") as f:
+with open('techniques.jsonl', 'r') as f:
     for i, line in enumerate(f):
         if num_lines_techniques > 0 and i == num_lines_techniques:
             break
         techniques.append(json.loads(line))
 
-# Iterate over each query and technique, and generate the completion
-with open("pap_prompts.jsonl", "a") as f:
-    for index, row in queries_df.iterrows():
-        for tech in techniques:
+# Iterate over each technique and randomly select queries, then generate the completion
+with open('pap_prompts.jsonl', 'a') as f:
+    for tech in techniques:
+        selected_queries = queries_df.sample(n=num_lines_queries) if num_lines_queries > 0 else queries_df
+        for index, row in selected_queries.iterrows():
             user_prompt_formatted = (
-                USER_PROMPT.replace("{technique}", tech["technique"])
-                .replace("{definition}", tech["description"])
-                .replace("{query}", row["redteam_query"])
+                USER_PROMPT.replace('{technique}', tech['technique'])
+                .replace('{definition}', tech['description'])
+                .replace('{query}', row['redteam_query'])
             )
             result = gpt_completion(SYSTEM_PROMPT, user_prompt_formatted)
             result_dict = {
-                "query": row["redteam_query"],
-                "technique": tech["technique"],
-                "modified_query": result,
+                'query': row['redteam_query'],
+                'technique': tech['technique'],
+                'modified_query': result,
             }
-            f.write(json.dumps(result_dict) + "\n")
+            f.write(json.dumps(result_dict) + '\n')
+            f.flush()
